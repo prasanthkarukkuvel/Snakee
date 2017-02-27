@@ -51,7 +51,7 @@ namespace Snakee
 
     public enum Movement
     {
-        TOP, BOTTOM, LEFT, RIGHT
+        UP, DOWN, LEFT, RIGHT
     }
 
     public static class Extentions
@@ -83,15 +83,15 @@ namespace Snakee
 
         public Skeleton Move(Movement Movement)
         {
-            if (((this.Movement == Movement.TOP || this.Movement == Movement.BOTTOM) && !(Movement == Movement.TOP || Movement == Movement.BOTTOM)) || !(Movement == Movement.LEFT || Movement == Movement.RIGHT))
+            if (((this.Movement == Movement.UP || this.Movement == Movement.DOWN) && !(Movement == Movement.UP || Movement == Movement.DOWN)) || !(Movement == Movement.LEFT || Movement == Movement.RIGHT))
             {
                 this.Movement = Movement;
             }
 
             switch (this.Movement)
             {
-                case Movement.TOP: Left--; break;
-                case Movement.BOTTOM: Left++; break;
+                case Movement.UP: Left--; break;
+                case Movement.DOWN: Left++; break;
                 case Movement.LEFT: Top--; break;
                 case Movement.RIGHT: Top++; break;
             }
@@ -292,9 +292,9 @@ namespace Snakee
             {
                 SnakeBoard.putSnake(Movement.RIGHT);
                 Thread.Sleep(250);
-                SnakeBoard.putSnake(Movement.BOTTOM);
+                SnakeBoard.putSnake(Movement.DOWN);
                 Thread.Sleep(250);
-                SnakeBoard.putSnake(Movement.BOTTOM);
+                SnakeBoard.putSnake(Movement.DOWN);
                 Thread.Sleep(250);
                 SnakeBoard.putSnake(Movement.RIGHT);
                 Thread.Sleep(250);
