@@ -51,14 +51,14 @@ namespace Snakee
 
     public enum Movement
     {
-        UP, DOWN, LEFT, RIGHT
+        UP = 1, DOWN = 4, LEFT = 2, RIGHT = 3
     }
 
     public static class Extentions
     {
         public static void FeedbackEach<T>(this IEnumerable<T> Sequence, Action<T, T> Action)
         {
-            T Prev = default(T); 
+            T Prev = default(T);
             foreach (T Item in Sequence)
             {
                 Action(Prev, Item);
@@ -83,7 +83,7 @@ namespace Snakee
 
         public Skeleton Move(Movement Movement)
         {
-            if (((this.Movement == Movement.UP || this.Movement == Movement.DOWN) && !(Movement == Movement.UP || Movement == Movement.DOWN)) || !(Movement == Movement.LEFT || Movement == Movement.RIGHT))
+            if (((int)this.Movement + (int)Movement) != 5)
             {
                 this.Movement = Movement;
             }
@@ -103,7 +103,7 @@ namespace Snakee
 
     class SnakeBody : Skeleton
     {
-        public override int SkeletonBlock => 219;
+        public override int SkeletonBlock => 178;
 
         public SnakeBody(short Top, short Left, Movement Movement) : base(Top, Left, Movement)
         {
@@ -111,14 +111,33 @@ namespace Snakee
         }
     }
 
+    class SnakeHead : Skeleton
+    {
+        public override int SkeletonBlock => 219;
+
+        public SnakeHead(short Top, short Left, Movement Movement) : base(Top, Left, Movement)
+        {
+
+        }
+    }
+
+    class SnakeTail : Skeleton
+    {
+        public override int SkeletonBlock => 177;
+
+        public SnakeTail(short Top, short Left, Movement Movement) : base(Top, Left, Movement)
+        {
+
+        }
+    }
+
     class Snake
     {
-        public List<SnakeBody> Skeletons { get; private set; } = new List<SnakeBody>();
+        public List<Skeleton> Skeletons { get; private set; } = new List<Skeleton>();
 
         public Snake()
         {
-            Skeletons.Add(new SnakeBody(10, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(9, 1, Movement.RIGHT));
+            Skeletons.Add(new SnakeHead(9, 1, Movement.RIGHT));
             Skeletons.Add(new SnakeBody(8, 1, Movement.RIGHT));
             Skeletons.Add(new SnakeBody(7, 1, Movement.RIGHT));
             Skeletons.Add(new SnakeBody(6, 1, Movement.RIGHT));
@@ -126,7 +145,7 @@ namespace Snakee
             Skeletons.Add(new SnakeBody(4, 1, Movement.RIGHT));
             Skeletons.Add(new SnakeBody(3, 1, Movement.RIGHT));
             Skeletons.Add(new SnakeBody(2, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(1, 1, Movement.RIGHT));
+            Skeletons.Add(new SnakeTail(1, 1, Movement.RIGHT));
         }
 
         public void Move(Movement Movement)
@@ -232,17 +251,27 @@ namespace Snakee
             WriteConsoleOutputCharacter(ConsoleHandle, new string((char)Block, 1), 1, new Coord(Top, Left), ref RefHandle);
         }
 
-        public void putSnake(Movement Movement)
+        public void NextTick(Movement Movement)
         {
             Skeleton TailSkeleton = Snake.Skeletons.LastOrDefault();
 
             if (TailSkeleton != null)
-            {               
+            {
                 WriteCharacter(TailSkeleton.Top, TailSkeleton.Left, ForegroundColors.WHITE, EMPTY_BLOCK);
             }
 
             Snake.Move(Movement);
             Plot();
+        }
+
+        public void RepeatTick()
+        {
+            Skeleton HeadSkeleton = Snake.Skeletons.FirstOrDefault();
+
+            if (HeadSkeleton != null)
+            {
+                NextTick(HeadSkeleton.Movement);
+            }
         }
 
         public void Plot()
@@ -288,21 +317,33 @@ namespace Snakee
             Snake Snake = new Snake();
             Board SnakeBoard = new Board(Snake);
 
-            for (int i = 0; i < 40; i++)
-            {
-                SnakeBoard.putSnake(Movement.RIGHT);
-                Thread.Sleep(250);
-                SnakeBoard.putSnake(Movement.DOWN);
-                Thread.Sleep(250);
-                SnakeBoard.putSnake(Movement.DOWN);
-                Thread.Sleep(250);
-                SnakeBoard.putSnake(Movement.RIGHT);
-                Thread.Sleep(250);
-                SnakeBoard.putSnake(Movement.RIGHT);
-                Thread.Sleep(250);
-            }
+            var Speed = 250;
 
-            Console.Read();
+            while (true)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var KeyPressed = Console.ReadKey(true);
+
+                    switch (KeyPressed.Key)
+                    {
+                        case ConsoleKey.W:
+                        case ConsoleKey.UpArrow: SnakeBoard.NextTick(Movement.UP); break;
+                        case ConsoleKey.S:
+                        case ConsoleKey.DownArrow: SnakeBoard.NextTick(Movement.DOWN); break;
+                        case ConsoleKey.D:
+                        case ConsoleKey.RightArrow: SnakeBoard.NextTick(Movement.RIGHT); break;
+                        case ConsoleKey.A:
+                        case ConsoleKey.LeftArrow: SnakeBoard.NextTick(Movement.LEFT); break;
+                    }
+                }
+                else
+                {
+                    SnakeBoard.RepeatTick();
+                }
+
+                Thread.Sleep(Speed);
+            }
         }
     }
 }
