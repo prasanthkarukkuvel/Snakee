@@ -54,54 +54,102 @@ namespace Snakee
         UP = 1, DOWN = 4, LEFT = 2, RIGHT = 3
     }
 
-    public static class Extentions
+    public class Position : ICloneable
     {
-        public static void FeedbackEach<T>(this IEnumerable<T> Sequence, Action<T, T> Action)
+        public short X { get; private set; }
+        public short Y { get; private set; }
+        public Movement Movement { get; set; }
+
+        public Position(int X, int Y, Movement Movement)
         {
-            T Prev = default(T);
-            foreach (T Item in Sequence)
-            {
-                Action(Prev, Item);
-                Prev = Item;
-            }
+            this.X = (short)X;
+            this.Y = (short)Y;
+            this.Movement = Movement;
+        }
+
+        public Position Top()
+        {
+            Y--;
+            return this;
+        }
+
+        public Position Bottom()
+        {
+            Y++;
+            return this;
+        }
+
+        public Position Left()
+        {
+            X--;
+            return this;
+        }
+
+        public Position Right()
+        {
+            X++;
+            return this;
+        }
+
+        public object Clone()
+        {
+            return new Position(this.X, this.Y, this.Movement);
         }
     }
 
-    abstract class Skeleton
+    public interface IMoveable<T>
     {
-        public short Top { get; private set; }
-        public short Left { get; private set; }
-        public Movement Movement { get; private set; }
-        public abstract int SkeletonBlock { get; }
+        Position Position { get; }
+        Position Next(Movement Movement);
+        T Move(Movement Movement);
+    }
 
-        public Skeleton(short Top, short Left, Movement Movement)
+    public static class PositionExtention
+    {
+        public static Position NextAdjacent<T>(this T Moveable, Movement Movement) where T : IMoveable<T>
         {
-            this.Top = Top;
-            this.Left = Left;
-            this.Movement = Movement;
+            var NextPosition = (Position)Moveable.Position.Clone();
+            if (((int)NextPosition.Movement + (int)Movement) != 5)
+            {
+                NextPosition.Movement = Movement;
+            }
+
+            switch (NextPosition.Movement)
+            {
+                case Movement.UP: NextPosition.Top(); break;
+                case Movement.DOWN: NextPosition.Bottom(); break;
+                case Movement.LEFT: NextPosition.Left(); break;
+                case Movement.RIGHT: NextPosition.Right(); break;
+            }
+
+            return NextPosition;
+        }
+    }
+
+    public abstract class Skeleton : IMoveable<Skeleton>
+    {
+        public abstract int SkeletonBlock { get; }
+        public Position Position { get; private set; }
+
+        public Skeleton(int Top, int Left, Movement Movement)
+        {
+            Position = new Position(Top, Left, Movement);
+        }
+
+        public Position Next(Movement Movement)
+        {
+            return this.NextAdjacent(Movement);
         }
 
         public Skeleton Move(Movement Movement)
         {
-            if (((int)this.Movement + (int)Movement) != 5)
-            {
-                this.Movement = Movement;
-            }
-
-            switch (this.Movement)
-            {
-                case Movement.UP: Left--; break;
-                case Movement.DOWN: Left++; break;
-                case Movement.LEFT: Top--; break;
-                case Movement.RIGHT: Top++; break;
-            }
-
+            this.Position = Next(Movement);
             return this;
         }
     }
 
 
-    class SnakeBody : Skeleton
+    public class SnakeBody : Skeleton
     {
         public override int SkeletonBlock => 178;
 
@@ -111,7 +159,7 @@ namespace Snakee
         }
     }
 
-    class SnakeHead : Skeleton
+    public class SnakeHead : Skeleton
     {
         public override int SkeletonBlock => 219;
 
@@ -121,7 +169,7 @@ namespace Snakee
         }
     }
 
-    class SnakeTail : Skeleton
+    public class SnakeTail : Skeleton
     {
         public override int SkeletonBlock => 177;
 
@@ -131,29 +179,35 @@ namespace Snakee
         }
     }
 
-    class Snake
+    public interface IChainable<T>
     {
-        public List<Skeleton> Skeletons { get; private set; } = new List<Skeleton>();
+        List<T> Chain { get; }
+        void Move(Movement Movement);
+    }
+
+    public class Snake : IChainable<Skeleton>
+    {
+        public List<Skeleton> Chain { get; private set; } = new List<Skeleton>();
 
         public Snake()
         {
-            Skeletons.Add(new SnakeHead(9, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(8, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(7, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(6, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(5, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(4, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(3, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeBody(2, 1, Movement.RIGHT));
-            Skeletons.Add(new SnakeTail(1, 1, Movement.RIGHT));
+            Chain.Add(new SnakeHead(9, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(8, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(7, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(6, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(5, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(4, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(3, 1, Movement.RIGHT));
+            Chain.Add(new SnakeBody(2, 1, Movement.RIGHT));
+            Chain.Add(new SnakeTail(1, 1, Movement.RIGHT));
         }
 
         public void Move(Movement Movement)
         {
             var LastMovement = Movement;
-            Skeletons.FeedbackEach((Prev, Skeleton) =>
+            Chain.ForEach((Skeleton) =>
             {
-                var CurrentMovement = Skeleton.Movement;
+                var CurrentMovement = Skeleton.Position.Movement;
                 Skeleton.Move(LastMovement);
                 LastMovement = CurrentMovement;
             });
@@ -210,11 +264,11 @@ namespace Snakee
         private const int FULL_BLOCK = 219;
         private const int EMPTY_BLOCK = 255;
         private static int RefHandle;
-        private Snake Snake { get; set; }
+        private IChainable<Skeleton> SkeletonChain { get; set; }
 
-        public Board(Snake Snake)
+        public Board(IChainable<Skeleton> SkeletonChain)
         {
-            this.Snake = Snake;
+            this.SkeletonChain = SkeletonChain;
             Plot();
         }
 
@@ -251,32 +305,56 @@ namespace Snakee
             WriteConsoleOutputCharacter(ConsoleHandle, new string((char)Block, 1), 1, new Coord(Top, Left), ref RefHandle);
         }
 
-        public void NextTick(Movement Movement)
+        public void NextTick(Movement Movement, Skeleton TopSkeleton = null)
         {
-            Skeleton TailSkeleton = Snake.Skeletons.LastOrDefault();
+            BeforeTick(TopSkeleton != null ? TopSkeleton : SkeletonChain.Chain.FirstOrDefault());
 
-            if (TailSkeleton != null)
+            Skeleton LastSkeleton = SkeletonChain.Chain.LastOrDefault();
+
+            if (LastSkeleton != null)
             {
-                WriteCharacter(TailSkeleton.Top, TailSkeleton.Left, ForegroundColors.WHITE, EMPTY_BLOCK);
+                WriteCharacter(LastSkeleton.Position.X, LastSkeleton.Position.Y, ForegroundColors.WHITE, EMPTY_BLOCK);
             }
 
-            Snake.Move(Movement);
+            SkeletonChain.Move(Movement);
             Plot();
         }
 
         public void RepeatTick()
         {
-            Skeleton HeadSkeleton = Snake.Skeletons.FirstOrDefault();
+            Skeleton TopSkeleton = SkeletonChain.Chain.FirstOrDefault();
 
-            if (HeadSkeleton != null)
+            if (TopSkeleton != null)
             {
-                NextTick(HeadSkeleton.Movement);
+                NextTick(TopSkeleton.Position.Movement, TopSkeleton);
             }
+        }
+
+        public void BeforeTick(Skeleton TopSkeleton)
+        {
+            if (TopSkeleton != null)
+            {
+                Position Position = TopSkeleton.Next(TopSkeleton.Position.Movement);
+
+                if (Position.X == -1 || Position.Y == -1)
+                {
+                    throw new Exception("Boundary");
+                }
+
+                if(SkeletonChain.Chain.TakeWhile(Skeleton => Skeleton.Position.X != TopSkeleton.Position.X && Skeleton.Position.Y != TopSkeleton.Position.Y).Any(Skeleton => Skeleton.Position.X == Position.X && Skeleton.Position.Y == Position.Y))
+                {
+                    throw new Exception("Colision");
+                }
+
+                return;
+            }
+
+            throw new Exception("Skeleton not found");
         }
 
         public void Plot()
         {
-            Snake.Skeletons.ForEach(Skeleton => WriteCharacter(Skeleton.Top, Skeleton.Left, ForegroundColors.WHITE, Skeleton.SkeletonBlock));
+            SkeletonChain.Chain.ForEach(Skeleton => WriteCharacter(Skeleton.Position.X, Skeleton.Position.Y, ForegroundColors.WHITE, Skeleton.SkeletonBlock));
         }
     }
 
@@ -314,10 +392,10 @@ namespace Snakee
             Console.BufferHeight = Board.BOARD_HEIGHT;
             Console.CursorVisible = false;
 
-            Snake Snake = new Snake();
-            Board SnakeBoard = new Board(Snake);
+            var Snake = new Snake();
+            var SnakeBoard = new Board(Snake);
 
-            var Speed = 250;
+            var Speed = 1000;
 
             while (true)
             {
